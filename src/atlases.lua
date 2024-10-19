@@ -1,91 +1,84 @@
 local Atlases = class('Atlases')
 
 function Atlases:initialize()
-
-	self.images = {}
-
+    self.images = {}
+    self.jsondata = {}
 end
 
 function Atlases:load(tileset)
+    local filenames = {}
+    local numerrors = 0
+    local path = "files/atlases/"
 
-	local filenames = {}
-	
-	for i = 1, #self.images do
-		if self.images[i] then
-			self.images[i]:release()
-		end
-	end
-	
-	self.images = {}
-	self.jsondata = {}
+    -- Clear old images to free memory
+    for key, image in pairs(self.images) do
+        image:release()  -- Free the texture memory
+        self.images[key] = nil  -- Dereference images for garbage collection
+    end
+    
+    -- Reset jsondata
+    self.jsondata = {}
 
-	if tileset == "city" then
-		self.filenames = {
-			"enemies",
-			"common-props",
-			"city-environment",
-			"city-props",
-			"npc",
-		}	
-	elseif tileset == "forest" then
-		self.filenames = {
-			"forest-environment",
-			"forest-props",
-			"enemies",
-			"common-props",
-			"npc",
-		}	
-	elseif tileset == "dungeon" then
-		self.filenames = {
-			"dungeon-environment",
-			"forest-props",
-			"dungeon-props",
-			"enemies",
-			"common-props",
-			"npc",
-		}	
-	end
+    -- Define filenames based on the tileset
+    if tileset == "city" then
+        filenames = {
+            "enemies",
+            "common-props",
+            "city-environment",
+            "city-props",
+            "npc",
+        }    
+    elseif tileset == "forest" then
+        filenames = {
+            "forest-environment",
+            "forest-props",
+            "enemies",
+            "common-props",
+            "npc",
+        }    
+    elseif tileset == "dungeon" then
+        filenames = {
+            "dungeon-environment",
+            "forest-props",
+            "dungeon-props",
+            "enemies",
+            "common-props",
+            "npc",
+        }    
+    end
 
-	local numerrors = 0
-	local path = "files/atlases/"
+    -- Load images and JSON files
+    for _, filename in ipairs(filenames) do
+        -- Load atlas graphics
+        local imagePath = path .. filename .. ".png"
+        if love.filesystem.getInfo(imagePath) then
+            self.images[filename] = love.graphics.newImage(imagePath, {mipmaps = true})  -- Enable mipmaps
+        else
+            print("Unable to load: " .. imagePath)
+            numerrors = numerrors + 1
+        end
+        
+        -- Load atlas JSONs
+        local jsonPath = path .. filename .. ".json"
+        local file, err = io.open(jsonPath, "rb")
 
-	for index = 1, #self.filenames do
-	
-		local filename = self.filenames[index]
-	
-		-- load atlas graphics
+        if file then
+            local jsondata = file:read("*all")
+            file:close()
+            local data = json.parse(jsondata)
 
-		if love.filesystem.getInfo(path..filename..".png") then
-			self.images[filename] = love.graphics.newImage(path..filename..".png")
-		else
-			print("Unable to load: "..path..filename..".png")
-			numerrors = numerrors + 1
-		end
-		
-		-- load atlas jsons
+            -- Store JSON layers
+            self.jsondata[filename] = { layer = {} }
+            for _, layer in ipairs(data.layers) do
+                self.jsondata[filename].layer[layer.name] = layer
+            end
+        else
+            print("Unable to load: " .. jsonPath)
+            numerrors = numerrors + 1
+        end    
+    end
 
-		file, err = io.open(path..filename..".json", "rb")
-		
-		if not err and file then
-			local jsondata = file:read("*all")
-			file:close()
-			local data = json.parse(jsondata)
-
-			self.jsondata[filename] = { layer = {}}
-			
-			for i = 1, #data.layers do
-				self.jsondata[filename].layer[data.layers[i].name] = data.layers[i]
-			end
-			
-		else
-			print("Unable to load: "..path..filename..".json")
-			numerrors = numerrors + 1
-		end	
-
-	end
-
-	return (numerrors == 0)
-
+    return numerrors == 0
 end
 
 return Atlases

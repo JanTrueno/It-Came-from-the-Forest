@@ -23,7 +23,7 @@ function love.load(arg)
 end
 
 function love.update(dt)
-
+	collectgarbage("collect")
 	game:update(dt)
 	
 end
